@@ -24,8 +24,6 @@ class Transactions extends Table {
   DateTimeColumn get deleted_at => dateTime().nullable()();
 }
 
-
-
 @DriftDatabase(tables: [Categories, Transactions])
 class AppDatabase extends _$AppDatabase {
   // After generating code, this class needs to define a `schemaVersion` getter
