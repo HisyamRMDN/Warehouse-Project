@@ -7,7 +7,14 @@ import 'package:warehouse_project/models/wms_models.dart';
 import 'package:warehouse_project/widgets/wms_ui_components.dart';
 
 class FormPage extends StatefulWidget {
-  const FormPage({super.key});
+  final bool embedded;
+  final VoidCallback? onSaved;
+
+  const FormPage({
+    super.key,
+    this.embedded = false,
+    this.onSaved,
+  });
 
   @override
   State<FormPage> createState() => _FormPageState();
@@ -27,11 +34,10 @@ class _FormPageState extends State<FormPage> {
     'lainnya': 'Lainnya',
   };
   static const _adjustReasons = {
-    'opname': 'Hasil Stock Opname Fisik',
+    'lainnya': 'Hasil Stock Opname Fisik',
     'rusak': 'Barang Rusak / Penyok',
     'pecah': 'Barang Pecah',
     'hilang': 'Selisih / Hilang',
-    'lainnya': 'Koreksi Lainnya',
   };
   static const _channels = {
     'shopee': 'Shopee',
@@ -138,14 +144,16 @@ class _FormPageState extends State<FormPage> {
       _transactionType = type;
       if (type == 'IN') {
         _reason = 'pembelian';
+        _qtyController.clear();
       } else if (type == 'OUT') {
         _reason = 'penjualan';
+        _qtyController.clear();
       } else {
-        _reason = 'opname';
+        _reason = 'lainnya';
         _inputUnit = 'pcs';
+        _qtyController.text = (_selectedItem?.currentStock ?? 0).toString();
       }
       _channel = _isSale ? 'shopee' : null;
-      _qtyController.clear();
       _applyDefaultPrice();
     });
   }
@@ -161,6 +169,9 @@ class _FormPageState extends State<FormPage> {
     setState(() {
       _selectedItem = item;
       if (!item.hasPack) _inputUnit = 'pcs';
+      if (_isAdjust) {
+        _qtyController.text = item.currentStock.toString();
+      }
       _applyDefaultPrice();
     });
   }
@@ -169,6 +180,14 @@ class _FormPageState extends State<FormPage> {
     setState(() {
       _inputUnit = unit;
       _applyDefaultPrice();
+    });
+  }
+
+  void _stepQty(int delta) {
+    final current = int.tryParse(_qtyController.text.trim()) ?? 0;
+    final next = (current + delta).clamp(0, 999999);
+    setState(() {
+      _qtyController.text = next.toString();
     });
   }
 
@@ -216,18 +235,18 @@ class _FormPageState extends State<FormPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Pilih Barang (SKU)',
+                        'Pilih Barang yang Dicek',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1B2559),
+                          color: Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 10),
                       WmsSearchBar(
                         controller: searchCtrl,
                         hasText: query.isNotEmpty,
-                        hintText: 'Ketik nama panci, wadah, atau SKU...',
+                        hintText: 'Ketik nama barang atau kode SKU...',
                         onChanged: (val) => setSheetState(() => query = val),
                         onClear: () {
                           searchCtrl.clear();
@@ -242,7 +261,7 @@ class _FormPageState extends State<FormPage> {
                       ? const Center(
                           child: Text(
                             'Barang tidak ditemukan',
-                            style: TextStyle(color: Color(0xFF8F9BBA)),
+                            style: TextStyle(color: Color(0xFF64748B)),
                           ),
                         )
                       : ListView.separated(
@@ -257,13 +276,13 @@ class _FormPageState extends State<FormPage> {
                             return Container(
                               decoration: BoxDecoration(
                                 color: selected
-                                    ? const Color(0xFFEBF3FE)
+                                    ? const Color(0xFFEFF6FF)
                                     : const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
                                   color: selected
-                                      ? const Color(0xFF1D61E7)
-                                      : const Color(0xFFE9EDF7),
+                                      ? const Color(0xFF155EEF)
+                                      : const Color(0xFFE8EEF5),
                                 ),
                               ),
                               child: ListTile(
@@ -279,14 +298,14 @@ class _FormPageState extends State<FormPage> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13.5,
-                                    color: Color(0xFF1B2559),
+                                    color: Color(0xFF0F172A),
                                   ),
                                 ),
                                 subtitle: Text(
                                   it.sku,
                                   style: const TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFF8F9BBA),
+                                    color: Color(0xFF64748B),
                                   ),
                                 ),
                                 trailing: StockBadge(item: it),
@@ -313,6 +332,19 @@ class _FormPageState extends State<FormPage> {
     );
   }
 
+  void _finishSuccess(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    if (widget.embedded) {
+      _qtyController.clear();
+      _refController.clear();
+      _notesController.clear();
+      _initData();
+      widget.onSaved?.call();
+    } else {
+      Navigator.pop(context, true);
+    }
+  }
+
   Future<void> _submitTransaction() async {
     final item = _selectedItem;
     if (item == null) return;
@@ -323,7 +355,7 @@ class _FormPageState extends State<FormPage> {
         SnackBar(
           content: Text(
             _isAdjust
-                ? 'Masukkan jumlah stok fisik hasil hitung'
+                ? 'Masukkan jumlah stok fisik aktual'
                 : 'Jumlah barang wajib diisi',
           ),
         ),
@@ -342,7 +374,7 @@ class _FormPageState extends State<FormPage> {
       final diff = inputVal - item.currentStock;
       if (diff == 0) {
         _showError(
-          'Stok fisik sama dengan stok tercatat (${item.currentStock} ${item.unit}), tidak ada selisih',
+          'Stok fisik sama dengan stok tercatat (${item.currentStock} ${item.unit})',
         );
         return;
       }
@@ -365,7 +397,7 @@ class _FormPageState extends State<FormPage> {
         });
 
         if (!mounted) return;
-        Navigator.pop(context, true);
+        _finishSuccess('Hasil Stock Opname disimpan');
       } on PostgrestException catch (e) {
         if (!mounted) return;
         _showError('Ditolak server: ${e.message}');
@@ -380,7 +412,6 @@ class _FormPageState extends State<FormPage> {
       return;
     }
 
-    // Mode IN / OUT standar
     if (inputVal <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Jumlah barang harus lebih dari 0')),
@@ -420,7 +451,11 @@ class _FormPageState extends State<FormPage> {
       });
 
       if (!mounted) return;
-      Navigator.pop(context, true);
+      _finishSuccess(
+        _transactionType == 'IN'
+            ? 'Barang masuk dicatat'
+            : 'Barang keluar dicatat',
+      );
     } on PostgrestException catch (e) {
       if (!mounted) return;
       _showError('Ditolak server: ${e.message}');
@@ -456,390 +491,464 @@ class _FormPageState extends State<FormPage> {
         ? parsedInput - item.currentStock
         : null;
 
-    Color submitColor = const Color(0xFF2E7D32);
     String submitLabel = 'Simpan Barang Masuk';
+    IconData submitIcon = Icons.check_circle_outline_rounded;
     if (_transactionType == 'OUT') {
-      submitColor = const Color(0xFFC62828);
       submitLabel = 'Simpan Barang Keluar';
     } else if (_isAdjust) {
-      submitColor = const Color(0xFF1D61E7);
-      submitLabel = 'Simpan Hasil Stock Opname';
+      submitLabel = 'Simpan Hasil Opname';
     }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FE),
-      appBar: AppBar(
-        title: const Text('Catat Mutasi Stok'),
-      ),
-      body: _isLoadingItems
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text(
-                      'Belum ada Master Barang terdaftar.\nSilakan tambahkan barang terlebih dahulu di tab "Barang".',
-                      textAlign: TextAlign.center,
-                    ),
+    final bodyContent = _isLoadingItems
+        ? const Center(child: CircularProgressIndicator())
+        : _items.isEmpty
+            ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Belum ada Master Barang terdaftar.',
+                    textAlign: TextAlign.center,
                   ),
-                )
-              : Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                      children: [
-                        // 1. Pemilih Jenis Mutasi (Pill Selector)
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE9EDF7)),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _TypeTabButton(
-                                  label: 'Masuk (IN)',
-                                  icon: Icons.south_west_rounded,
-                                  activeColor: const Color(0xFF2E7D32),
-                                  selected: _transactionType == 'IN',
-                                  onTap: () => _onTypeChanged('IN'),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: _TypeTabButton(
-                                  label: 'Keluar (OUT)',
-                                  icon: Icons.north_east_rounded,
-                                  activeColor: const Color(0xFFC62828),
-                                  selected: _transactionType == 'OUT',
-                                  onTap: () => _onTypeChanged('OUT'),
-                                ),
-                              ),
-                              if (_isAdmin) ...[
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: _TypeTabButton(
-                                    label: 'Opname',
-                                    icon: Icons.tune_rounded,
-                                    activeColor: const Color(0xFF1D61E7),
-                                    selected: _transactionType == 'ADJUSTMENT',
-                                    onTap: () => _onTypeChanged('ADJUSTMENT'),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                ),
+              )
+            : Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 600),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 32),
+                    children: [
+                      // 1. Pill Tab Masuk / Keluar / Opname (Persis Layar 4 Mockup)
+                      Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: const Color(0xFFE8EEF5)),
                         ),
-
-                        const SizedBox(height: 14),
-
-                        // 2. Kartu Pilih Barang (Tap untuk membuka pencarian cepat)
-                        if (item != null)
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border:
-                                  Border.all(color: const Color(0xFFE9EDF7)),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _ModePill(
+                                label: 'Masuk',
+                                selected: _transactionType == 'IN',
+                                onTap: () => _onTypeChanged('IN'),
+                              ),
                             ),
-                            child: ListTile(
-                              onTap: _openItemPicker,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
+                            Expanded(
+                              child: _ModePill(
+                                label: 'Keluar',
+                                selected: _transactionType == 'OUT',
+                                onTap: () => _onTypeChanged('OUT'),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              leading: CategoryAvatar(
-                                categoryName: item.categoryName,
-                                skuPrefix: item.sku.split('-').first,
-                              ),
-                              title: Text(
-                                item.name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  color: Color(0xFF1B2559),
+                            ),
+                            if (_isAdmin)
+                              Expanded(
+                                child: _ModePill(
+                                  label: 'Opname',
+                                  selected: _transactionType == 'ADJUSTMENT',
+                                  onTap: () => _onTypeChanged('ADJUSTMENT'),
                                 ),
                               ),
-                              subtitle: Padding(
-                                padding: const EdgeInsets.only(top: 3),
-                                child: Text(
-                                  '${item.sku} • Ketuk untuk ganti barang',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF1D61E7),
-                                    fontWeight: FontWeight.w600,
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // 2. Kartu Form Utama Putih Bersih
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE8EEF5)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              _isAdjust ? 'Barang yang Dicek' : 'Pilih Barang',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Selector Barang yang bisa diketuk untuk cari cepat
+                            if (item != null)
+                              InkWell(
+                                onTap: _openItemPicker,
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: const Color(0xFFE2E8F0),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              item.name,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              '${item.sku}  •  Sistem: ${item.currentStock} ${item.unit.toLowerCase()}',
+                                              style: const TextStyle(
+                                                fontSize: 11.5,
+                                                color: Color(0xFF64748B),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
+
+                            // Baris Stok Tercatat di Sistem (Khusus Opname, persis Layar 4 Mockup)
+                            if (_isAdjust && item != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Stok Tercatat di Sistem',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: Color(0xFF64748B),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${item.currentStock} ${item.unit.toLowerCase()}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+
+                            const SizedBox(height: 16),
+
+                            // Kotak Jumlah dengan Tombol Stepper - dan + (Persis Layar 4 Mockup)
+                            Text(
+                              _isAdjust
+                                  ? 'Hitung Stok Fisik Aktual'
+                                  : 'Jumlah ($unitLabel)',
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: Row(
                                 children: [
-                                  StockBadge(item: item),
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    Icons.unfold_more_rounded,
-                                    color: Color(0xFF8F9BBA),
+                                  _StepperButton(
+                                    icon: Icons.remove_rounded,
+                                    isPrimary: false,
+                                    onTap: () => _stepQty(-1),
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _qtyController,
+                                      textAlign: TextAlign.center,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                      ],
+                                      onChanged: (_) => setState(() {}),
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A),
+                                      ),
+                                      decoration: const InputDecoration(
+                                        hintText: '0',
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        filled: false,
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
+                                    ),
+                                  ),
+                                  _StepperButton(
+                                    icon: Icons.add_rounded,
+                                    isPrimary: true,
+                                    onTap: () => _stepQty(1),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
 
-                        const SizedBox(height: 14),
+                            // Banner Selisih Otomatis (Persis Layar 4 Mockup)
+                            if (_isAdjust && opnameDiff != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 11,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: opnameDiff == 0
+                                      ? const Color(0xFFF1F5F9)
+                                      : opnameDiff > 0
+                                          ? const Color(0xFFECFDF5)
+                                          : const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Selisih Otomatis',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: opnameDiff == 0
+                                            ? const Color(0xFF475569)
+                                            : opnameDiff > 0
+                                                ? const Color(0xFF047857)
+                                                : const Color(0xFFB91C1C),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        opnameDiff == 0
+                                            ? '0 ${item!.unit.toLowerCase()}'
+                                            : '${opnameDiff > 0 ? '+' : ''}$opnameDiff ${item!.unit.toLowerCase()}',
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: opnameDiff == 0
+                                              ? const Color(0xFF475569)
+                                              : opnameDiff > 0
+                                                  ? const Color(0xFF059669)
+                                                  : const Color(0xFFDC2626),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
 
-                        // 3. Kartu Form Input Utama
-                        Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFE9EDF7)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
+                            const SizedBox(height: 14),
+
+                            DropdownButtonFormField<String>(
+                              key: ValueKey('reason_$_transactionType'),
+                              initialValue: _reason,
+                              decoration:
+                                  const InputDecoration(labelText: 'Alasan'),
+                              items: _reasons.entries
+                                  .map((e) => DropdownMenuItem(
+                                        value: e.key,
+                                        child: Text(e.value),
+                                      ))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null) _onReasonChanged(val);
+                              },
+                            ),
+
+                            if (_isSale) ...[
+                              const SizedBox(height: 12),
                               DropdownButtonFormField<String>(
-                                key: ValueKey('reason_$_transactionType'),
-                                initialValue: _reason,
-                                decoration:
-                                    const InputDecoration(labelText: 'Alasan'),
-                                items: _reasons.entries
+                                key: const ValueKey('channel'),
+                                initialValue: _channel,
+                                decoration: const InputDecoration(
+                                  labelText: 'Channel Penjualan',
+                                ),
+                                items: _channels.entries
                                     .map((e) => DropdownMenuItem(
                                           value: e.key,
                                           child: Text(e.value),
                                         ))
                                     .toList(),
-                                onChanged: (val) {
-                                  if (val != null) _onReasonChanged(val);
-                                },
+                                onChanged: (val) =>
+                                    setState(() => _channel = val),
                               ),
-                              if (_isSale) ...[
-                                const SizedBox(height: 14),
-                                DropdownButtonFormField<String>(
-                                  key: const ValueKey('channel'),
-                                  initialValue: _channel,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Channel Penjualan',
+                            ],
+
+                            if (!_isAdjust && item != null && item.hasPack) ...[
+                              const SizedBox(height: 12),
+                              SegmentedButton<String>(
+                                segments: [
+                                  ButtonSegment(
+                                    value: 'pcs',
+                                    label: Text(item.unit),
                                   ),
-                                  items: _channels.entries
-                                      .map((e) => DropdownMenuItem(
-                                            value: e.key,
-                                            child: Text(e.value),
-                                          ))
-                                      .toList(),
-                                  onChanged: (val) =>
-                                      setState(() => _channel = val),
-                                ),
-                              ],
-                              if (!_isAdjust &&
-                                  item != null &&
-                                  item.hasPack) ...[
-                                const SizedBox(height: 14),
-                                const Text(
-                                  'Satuan Input',
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF1B2559),
+                                  ButtonSegment(
+                                    value: 'pack',
+                                    label: Text(
+                                      '${item.packLabel} (isi ${item.packQty})',
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                SegmentedButton<String>(
-                                  segments: [
-                                    ButtonSegment(
-                                      value: 'pcs',
-                                      label: Text(item.unit),
-                                    ),
-                                    ButtonSegment(
-                                      value: 'pack',
-                                      label: Text(
-                                        '${item.packLabel} (isi ${item.packQty})',
-                                      ),
-                                    ),
-                                  ],
-                                  selected: {_inputUnit},
-                                  onSelectionChanged: (set) =>
-                                      _onUnitChanged(set.first),
-                                ),
-                              ],
-                              const SizedBox(height: 14),
+                                ],
+                                selected: {_inputUnit},
+                                onSelectionChanged: (set) =>
+                                    _onUnitChanged(set.first),
+                              ),
+                            ],
+
+                            if (!_isAdjust) ...[
+                              const SizedBox(height: 12),
                               TextField(
-                                controller: _qtyController,
+                                controller: _priceController,
                                 keyboardType: TextInputType.number,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
                                 ],
                                 onChanged: (_) => setState(() {}),
                                 decoration: InputDecoration(
-                                  labelText: _isAdjust
-                                      ? 'Stok Fisik Hasil Hitung (${item?.unit ?? 'pcs'}) *'
-                                      : 'Jumlah ($unitLabel) *',
-                                  helperText: (!_isAdjust && _isPack && qty > 0)
-                                      ? '= ${qty * _packQty} ${item?.unit ?? 'pcs'}'
+                                  labelText: 'Harga per $unitLabel (Rp)',
+                                  helperText: (price != null && qty > 0)
+                                      ? 'Total: ${formatRupiah(price * qty)}'
                                       : null,
                                 ),
                               ),
-
-                              // Kartu Pratinjau Selisih Otomatis saat mode Opname
-                              if (_isAdjust && item != null) ...[
-                                const SizedBox(height: 12),
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF4F7FE),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Stok Tercatat: ${item.currentStock} ${item.unit}',
-                                        style: const TextStyle(
-                                          fontSize: 12.5,
-                                          color: Color(0xFF1B2559),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      if (opnameDiff != null)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: opnameDiff == 0
-                                                ? Colors.grey.shade200
-                                                : opnameDiff > 0
-                                                    ? const Color(0xFFE8F5E9)
-                                                    : const Color(0xFFFFEBEE),
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            opnameDiff == 0
-                                                ? 'Selisih: 0'
-                                                : 'Selisih: ${opnameDiff > 0 ? '+' : ''}$opnameDiff ${item.unit}',
-                                            style: TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w800,
-                                              color: opnameDiff == 0
-                                                  ? Colors.black54
-                                                  : opnameDiff > 0
-                                                      ? const Color(0xFF2E7D32)
-                                                      : const Color(0xFFC62828),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-
-                              if (!_isAdjust) ...[
-                                const SizedBox(height: 14),
-                                TextField(
-                                  controller: _priceController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly,
-                                  ],
-                                  onChanged: (_) => setState(() {}),
-                                  decoration: InputDecoration(
-                                    labelText: 'Harga per $unitLabel (Rp)',
-                                    helperText: (price != null && qty > 0)
-                                        ? 'Total: ${formatRupiah(price * qty)}'
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 14),
-                              TextField(
-                                controller: _refController,
-                                decoration: InputDecoration(
-                                  labelText: _isAdjust
-                                      ? 'No. Berita Acara / Ref (Opsional)'
-                                      : 'No. Pesanan / Surat Jalan',
-                                  hintText: _isAdjust
-                                      ? 'Contoh: OPN-NOV-2026'
-                                      : 'Contoh: 2611ABCD123',
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              TextField(
-                                controller: _notesController,
-                                maxLines: 2,
-                                decoration: InputDecoration(
-                                  labelText: 'Keterangan',
-                                  hintText: _isAdjust
-                                      ? 'Contoh: Hitung ulang rak A-01'
-                                      : 'Contoh: Restock Supplier',
-                                ),
-                              ),
                             ],
-                          ),
-                        ),
 
-                        const SizedBox(height: 20),
-
-                        SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            onPressed:
-                                _isSubmitting ? null : _submitTransaction,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: submitColor,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _refController,
+                              decoration: InputDecoration(
+                                labelText: _isAdjust
+                                    ? 'No. Berita Acara (Opsional)'
+                                    : 'No. Pesanan / Surat Jalan',
+                                hintText: _isAdjust
+                                    ? 'Contoh: OPN-NOV-2026'
+                                    : 'Contoh: 2611ABCD123',
                               ),
                             ),
-                            child: _isSubmitting
-                                ? const SizedBox(
-                                    height: 22,
-                                    width: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Text(
-                                    submitLabel,
-                                    style: const TextStyle(
-                                      fontSize: 15.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _notesController,
+                              decoration: InputDecoration(
+                                labelText: 'Catatan (Opsional)',
+                                hintText: _isAdjust
+                                    ? 'Contoh: 2 unit kemasan penyok di Rak A1'
+                                    : 'Contoh: Restock Supplier',
+                              ),
+                            ),
+
+                            const SizedBox(height: 18),
+
+                            SizedBox(
+                              height: 50,
+                              child: ElevatedButton.icon(
+                                onPressed:
+                                    _isSubmitting ? null : _submitTransaction,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF155EEF),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
-                          ),
+                                ),
+                                icon: _isSubmitting
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Icon(submitIcon, size: 19),
+                                label: Text(
+                                  submitLabel,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
+              );
+
+    if (widget.embedded) return bodyContent;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(title: const Text('Mutasi & Opname')),
+      body: bodyContent,
     );
   }
 }
 
-class _TypeTabButton extends StatelessWidget {
+class _ModePill extends StatelessWidget {
   final String label;
-  final IconData icon;
-  final Color activeColor;
   final bool selected;
   final VoidCallback onTap;
 
-  const _TypeTabButton({
+  const _ModePill({
     required this.label,
-    required this.icon,
-    required this.activeColor,
     required this.selected,
     required this.onTap,
   });
@@ -850,37 +959,55 @@ class _TypeTabButton extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 8),
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? activeColor : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          color: selected ? const Color(0xFF155EEF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: selected ? Colors.white : const Color(0xFF8F9BBA),
-            ),
-            const SizedBox(width: 5),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : const Color(0xFF8F9BBA),
-                ),
-              ),
-            ),
-          ],
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? Colors.white : const Color(0xFF64748B),
+          ),
         ),
       ),
     );
   }
 }
 
+class _StepperButton extends StatelessWidget {
+  final IconData icon;
+  final bool isPrimary;
+  final VoidCallback onTap;
+
+  const _StepperButton({
+    required this.icon,
+    required this.isPrimary,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isPrimary ? const Color(0xFF155EEF) : const Color(0xFFE2E8F0),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 44,
+          height: 44,
+          child: Icon(
+            icon,
+            color: isPrimary ? Colors.white : const Color(0xFF0F172A),
+            size: 22,
+          ),
+        ),
+      ),
+    );
+  }
+}

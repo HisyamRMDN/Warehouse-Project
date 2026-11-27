@@ -14,7 +14,7 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 0; // 0: Beranda, 1: Barang, 2: Mutasi
   int _refreshTick = 0;
   String? _role;
   String _displayName = 'Admin Gudang';
@@ -76,7 +76,7 @@ class _MainPageState extends State<MainPage> {
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF1D61E7),
+              backgroundColor: const Color(0xFF155EEF),
             ),
             child: const Text('Keluar'),
           ),
@@ -90,14 +90,33 @@ class _MainPageState extends State<MainPage> {
     setState(() => _refreshTick++);
   }
 
-  Future<void> _openMutationForm() async {
-    final updated = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(builder: (_) => const FormPage()),
+  void _selectTab(int index) {
+    if (_selectedIndex == index) return;
+    setState(() => _selectedIndex = index);
+  }
+
+  void _openCategoriesSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFFF8FAFC),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, __) => Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CategoryPage(
+            isAdmin: _role == 'admin',
+            onDataChanged: _triggerRefresh,
+          ),
+        ),
+      ),
     );
-    if (updated == true) {
-      _triggerRefresh();
-    }
   }
 
   Future<void> _handleLogout() async {
@@ -112,103 +131,120 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    final headerTitles = [
+      'Halo, $_displayName',
+      'Master Barang',
+      'Mutasi & Opname',
+    ];
+    final headerSubtitles = [
+      'Arasy39 WMS • Gudang Utama',
+      'Arasy39 WMS • Katalog SKU Aktif',
+      'Arasy39 WMS • Pencatatan Stok',
+    ];
+
     final pages = [
       HomePage(
-        key: ValueKey('home_$_refreshTick'),
+        key: ValueKey('home_${_selectedIndex}_$_refreshTick'),
         isAdmin: _role == 'admin',
-        onOpenMutation: _openMutationForm,
-        onNavigateTab: (idx) => setState(() => _selectedIndex = idx),
+        onOpenMutation: () => _selectTab(2),
+        onNavigateTab: _selectTab,
+        onOpenCategories: _openCategoriesSheet,
       ),
       ItemsPage(
-        key: ValueKey('items_$_refreshTick'),
+        key: ValueKey('items_${_selectedIndex}_$_refreshTick'),
         onDataChanged: _triggerRefresh,
         isAdmin: _role == 'admin',
       ),
-      CategoryPage(
-        key: ValueKey('cat_$_refreshTick'),
-        onDataChanged: _triggerRefresh,
-        isAdmin: _role == 'admin',
+      FormPage(
+        key: ValueKey('form_${_selectedIndex}_$_refreshTick'),
+        embedded: true,
+        onSaved: () {
+          _triggerRefresh();
+          _selectTab(0);
+        },
       ),
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FE),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
-            // Top Bar bersih ala Boxora (Logo + Brand + Refresh + Profil/Logout)
+            // Header bersih
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 14, 6),
+              padding: const EdgeInsets.fromLTRB(18, 12, 14, 8),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1D61E7).withValues(alpha: 0.12),
+                      color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(
-                      Icons.view_in_ar_rounded,
-                      color: Color(0xFF1D61E7),
-                      size: 22,
+                      Icons.inventory_2_outlined,
+                      color: Color(0xFF155EEF),
+                      size: 21,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Arasy39 WMS',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1B2559),
-                            letterSpacing: -0.3,
-                          ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: Align(
+                        key: ValueKey(_selectedIndex),
+                        alignment: Alignment.centerLeft,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              headerTitles[_selectedIndex],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16.5,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                            Text(
+                              headerSubtitles[_selectedIndex],
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          '$_displayName${_role != null ? ' • ${_role!.toUpperCase()}' : ''}',
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            color: Color(0xFF8F9BBA),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Kategori Barang',
+                    onPressed: _openCategoriesSheet,
+                    icon: const Icon(
+                      Icons.grid_view_rounded,
+                      color: Color(0xFF475569),
+                      size: 20,
                     ),
                   ),
                   IconButton(
                     tooltip: 'Muat Ulang',
                     onPressed: _triggerRefresh,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Color(0xFFE9EDF7)),
-                      ),
-                    ),
                     icon: const Icon(
                       Icons.refresh_rounded,
-                      color: Color(0xFF1B2559),
+                      color: Color(0xFF475569),
                       size: 20,
                     ),
                   ),
-                  const SizedBox(width: 6),
                   IconButton(
                     tooltip: 'Keluar',
                     onPressed: _confirmLogout,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Color(0xFFE9EDF7)),
-                      ),
-                    ),
                     icon: const Icon(
                       Icons.logout_rounded,
-                      color: Color(0xFFE53935),
+                      color: Color(0xFFDC2626),
                       size: 20,
                     ),
                   ),
@@ -216,80 +252,113 @@ class _MainPageState extends State<MainPage> {
               ),
             ),
 
-            // Isi halaman aktif
-            Expanded(child: pages[_selectedIndex]),
+            // Transisi perpindahan halaman halus (Fade + Subtle Slide)
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 260),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  final offsetAnim = Tween<Offset>(
+                    begin: const Offset(0.03, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: offsetAnim, child: child),
+                  );
+                },
+                child: pages[_selectedIndex],
+              ),
+            ),
           ],
         ),
       ),
 
-      // Floating Bottom Dock bergaya Boxora + Tombol Aksi Biru di kanan
+      // Floating Glass/Pill Navigation Bar dengan Indikator Meluncur & Expandable Label
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+          padding: const EdgeInsets.fromLTRB(18, 4, 18, 14),
           child: Row(
             children: [
               Expanded(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  height: 58,
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE9EDF7)),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF1B2559).withValues(alpha: 0.08),
-                        blurRadius: 20,
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+                        blurRadius: 18,
                         offset: const Offset(0, 6),
                       ),
                     ],
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  child: Stack(
                     children: [
-                      _NavPillItem(
-                        icon: Icons.home_rounded,
-                        label: 'Beranda',
-                        selected: _selectedIndex == 0,
-                        onTap: () => setState(() => _selectedIndex = 0),
+                      // Latar kapsul biru lembut yang meluncur mulus antar tab
+                      AnimatedAlign(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                        alignment: _selectedIndex == 0
+                            ? Alignment.centerLeft
+                            : _selectedIndex == 1
+                                ? Alignment.center
+                                : Alignment.centerRight,
+                        child: FractionallySizedBox(
+                          widthFactor: 1 / 3,
+                          heightFactor: 1,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: const Color(0xFFBFDBFE),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      _NavPillItem(
-                        icon: Icons.inventory_2_rounded,
-                        label: 'Barang',
-                        selected: _selectedIndex == 1,
-                        onTap: () => setState(() => _selectedIndex = 1),
-                      ),
-                      _NavPillItem(
-                        icon: Icons.grid_view_rounded,
-                        label: 'Kategori',
-                        selected: _selectedIndex == 2,
-                        onTap: () => setState(() => _selectedIndex = 2),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _AnimatedNavItem(
+                              outlinedIcon: Icons.home_outlined,
+                              filledIcon: Icons.home_rounded,
+                              label: 'Beranda',
+                              selected: _selectedIndex == 0,
+                              onTap: () => _selectTab(0),
+                            ),
+                          ),
+                          Expanded(
+                            child: _AnimatedNavItem(
+                              outlinedIcon: Icons.inventory_2_outlined,
+                              filledIcon: Icons.inventory_2_rounded,
+                              label: 'Barang',
+                              selected: _selectedIndex == 1,
+                              onTap: () => _selectTab(1),
+                            ),
+                          ),
+                          Expanded(
+                            child: _AnimatedNavItem(
+                              outlinedIcon: Icons.swap_horiz_rounded,
+                              filledIcon: Icons.swap_horiz_rounded,
+                              label: 'Mutasi',
+                              selected: _selectedIndex == 2,
+                              onTap: () => _selectTab(2),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              // Tombol + Mutasi Stok bulat membulat (Boxora style)
-              Material(
-                color: const Color(0xFF1D61E7),
-                borderRadius: BorderRadius.circular(20),
-                elevation: 4,
-                shadowColor: const Color(0xFF1D61E7).withValues(alpha: 0.35),
-                child: InkWell(
-                  onTap: _openMutationForm,
-                  borderRadius: BorderRadius.circular(20),
-                  child: const SizedBox(
-                    width: 54,
-                    height: 54,
-                    child: Icon(
-                      Icons.add_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                ),
-              ),
+              // Tombol (+) Aksi Cepat Biru dengan animasi rotasi saat tab Mutasi aktif
             ],
           ),
         ),
@@ -298,14 +367,16 @@ class _MainPageState extends State<MainPage> {
   }
 }
 
-class _NavPillItem extends StatelessWidget {
-  final IconData icon;
+class _AnimatedNavItem extends StatelessWidget {
+  final IconData outlinedIcon;
+  final IconData filledIcon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
-  const _NavPillItem({
-    required this.icon,
+  const _AnimatedNavItem({
+    required this.outlinedIcon,
+    required this.filledIcon,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -313,38 +384,47 @@ class _NavPillItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = const Color(0xFF155EEF);
+    final inactiveColor = const Color(0xFF64748B);
+
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: EdgeInsets.symmetric(
-          horizontal: selected ? 16 : 12,
-          vertical: 9,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1B2559) : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-        ),
+      child: Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: selected ? Colors.white : const Color(0xFF8F9BBA),
-            ),
-            if (selected) ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
-                ),
+            AnimatedScale(
+              scale: selected ? 1.08 : 1.0,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutBack,
+              child: Icon(
+                selected ? filledIcon : outlinedIcon,
+                size: 20,
+                color: selected ? activeColor : inactiveColor,
               ),
-            ],
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 240),
+              curve: Curves.easeOutCubic,
+              child: selected
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: activeColor,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),

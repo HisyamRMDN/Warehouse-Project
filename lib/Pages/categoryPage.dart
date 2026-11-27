@@ -105,7 +105,7 @@ class _CategoryPageState extends State<CategoryPage> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1D61E7),
+              backgroundColor: const Color(0xFF155EEF),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -168,7 +168,7 @@ class _CategoryPageState extends State<CategoryPage> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
           child: WmsSectionHeader(
             title: 'Kategori Barang',
             subtitle: '${_categories.length} kelompok produk terdaftar',
@@ -176,7 +176,7 @@ class _CategoryPageState extends State<CategoryPage> {
                 ? ElevatedButton.icon(
                     onPressed: _showAddCategoryDialog,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1D61E7),
+                      backgroundColor: const Color(0xFF155EEF),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
@@ -200,13 +200,13 @@ class _CategoryPageState extends State<CategoryPage> {
                   ? const Center(
                       child: Text(
                         'Belum ada kategori barang.',
-                        style: TextStyle(color: Color(0xFF8F9BBA)),
+                        style: TextStyle(color: Color(0xFF64748B)),
                       ),
                     )
                   : RefreshIndicator(
                       onRefresh: _loadCategories,
                       child: GridView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 2, 16, 88),
+                        padding: const EdgeInsets.fromLTRB(16, 2, 16, 32),
                         gridDelegate:
                             const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 260,
@@ -218,7 +218,7 @@ class _CategoryPageState extends State<CategoryPage> {
                         itemBuilder: (context, index) {
                           final cat = _categories[index];
                           final accent = WmsCategoryStyle.color(cat.name);
-                          final emoji = WmsCategoryStyle.emoji(cat.name);
+                          final iconData = WmsCategoryStyle.icon(cat.name);
                           final count = _itemCountByCat[cat.id] ?? 0;
 
                           return Container(
@@ -227,7 +227,7 @@ class _CategoryPageState extends State<CategoryPage> {
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: const Color(0xFFE9EDF7),
+                                color: const Color(0xFFE8EEF5),
                               ),
                             ),
                             child: Column(
@@ -242,13 +242,13 @@ class _CategoryPageState extends State<CategoryPage> {
                                       width: 40,
                                       height: 40,
                                       decoration: BoxDecoration(
-                                        color: accent.withValues(alpha: 0.12),
+                                        color: accent.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
-                                      alignment: Alignment.center,
-                                      child: Text(
-                                        emoji,
-                                        style: const TextStyle(fontSize: 20),
+                                      child: Icon(
+                                        iconData,
+                                        color: accent,
+                                        size: 21,
                                       ),
                                     ),
                                     if (widget.isAdmin)
@@ -260,7 +260,7 @@ class _CategoryPageState extends State<CategoryPage> {
                                         icon: const Icon(
                                           Icons.delete_outline_rounded,
                                           size: 19,
-                                          color: Color(0xFF8F9BBA),
+                                          color: Color(0xFF94A3B8),
                                         ),
                                       ),
                                   ],
@@ -275,7 +275,7 @@ class _CategoryPageState extends State<CategoryPage> {
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 14,
-                                        color: Color(0xFF1B2559),
+                                        color: Color(0xFF0F172A),
                                       ),
                                     ),
                                     const SizedBox(height: 2),
@@ -283,7 +283,7 @@ class _CategoryPageState extends State<CategoryPage> {
                                       '$count SKU aktif',
                                       style: const TextStyle(
                                         fontSize: 12,
-                                        color: Color(0xFF8F9BBA),
+                                        color: Color(0xFF64748B),
                                         fontWeight: FontWeight.w500,
                                       ),
                                     ),

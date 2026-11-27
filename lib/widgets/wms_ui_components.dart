@@ -1,63 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:warehouse_project/models/wms_models.dart';
 
-/// Helper warna & emoji kategori yang konsisten di seluruh halaman
+/// Helper ikon Google Material & warna kategori tanpa emoji
 class WmsCategoryStyle {
-  static String emoji(String? catName) {
-    if (catName == null) return '📦';
+  static IconData icon(String? catName) {
+    if (catName == null) return Icons.inventory_2_outlined;
     final n = catName.toLowerCase();
-    if (n.contains('panci') || n.contains('wajan')) return '🍳';
-    if (n.contains('wadah') || n.contains('saringan') || n.contains('baskom')) {
-      return '🏺';
+    if (n.contains('panci') || n.contains('wajan')) {
+      return Icons.soup_kitchen_outlined;
     }
-    if (n.contains('mangkok') || n.contains('piring')) return '🥣';
+    if (n.contains('wadah') || n.contains('saringan') || n.contains('baskom')) {
+      return Icons.takeout_dining_outlined;
+    }
+    if (n.contains('mangkok') || n.contains('piring')) {
+      return Icons.rice_bowl_outlined;
+    }
     if (n.contains('sendok') ||
         n.contains('alat makan') ||
         n.contains('masak')) {
-      return '🍴';
+      return Icons.restaurant_outlined;
     }
     if (n.contains('gelas') || n.contains('termos') || n.contains('mug')) {
-      return '🥤';
+      return Icons.local_cafe_outlined;
     }
-    if (n.contains('pisau') || n.contains('potong')) return '🔪';
-    if (n.contains('prasmanan')) return '🍲';
-    return '📦';
+    if (n.contains('pisau') || n.contains('potong')) {
+      return Icons.carpenter_outlined;
+    }
+    if (n.contains('prasmanan')) {
+      return Icons.room_service_outlined;
+    }
+    return Icons.kitchen_outlined;
   }
 
   static Color color(String? catName) {
-    if (catName == null) return Colors.blueGrey;
+    if (catName == null) return const Color(0xFF475569);
     final n = catName.toLowerCase();
     if (n.contains('panci') || n.contains('wajan')) {
-      return const Color(0xFFE28743);
+      return const Color(0xFF155EEF);
     }
     if (n.contains('wadah') || n.contains('saringan')) {
-      return const Color(0xFF1E88E5);
+      return const Color(0xFF0284C7);
     }
     if (n.contains('mangkok') || n.contains('piring')) {
-      return const Color(0xFF26A69A);
+      return const Color(0xFF0D9488);
     }
     if (n.contains('sendok') || n.contains('alat makan')) {
-      return const Color(0xFF7E57C2);
+      return const Color(0xFF4F46E5);
     }
     if (n.contains('gelas') || n.contains('termos')) {
-      return const Color(0xFF00ACC1);
+      return const Color(0xFF0891B2);
     }
     if (n.contains('pisau') || n.contains('potong')) {
-      return const Color(0xFFD81B60);
+      return const Color(0xFFE11D48);
     }
-    if (n.contains('prasmanan')) return const Color(0xFFEF6C00);
-    return Colors.blueGrey;
+    if (n.contains('prasmanan')) return const Color(0xFFD97706);
+    return const Color(0xFF475569);
   }
 }
 
-/// Kartu statistik ringkas bergaya Boxora / Gostock (bisa dipakai di HomePage)
+/// Kartu statistik ringkas bergaya bersih (dipakai untuk metrik Admin di Beranda)
 class WmsStatCard extends StatelessWidget {
   final String title;
   final String value;
   final String? subtitle;
   final IconData icon;
   final Color accentColor;
-  final bool isPrimary;
   final VoidCallback? onTap;
 
   const WmsStatCard({
@@ -66,40 +73,28 @@ class WmsStatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     this.subtitle,
-    this.accentColor = const Color(0xFF1565C0),
-    this.isPrimary = false,
+    this.accentColor = const Color(0xFF155EEF),
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isPrimary ? accentColor : Colors.white;
-    final titleColor =
-        isPrimary ? Colors.white.withValues(alpha: 0.88) : Colors.black54;
-    final valueColor = isPrimary ? Colors.white : const Color(0xFF1A202C);
-    final subColor =
-        isPrimary ? Colors.white.withValues(alpha: 0.72) : Colors.black45;
-
     return Material(
-      color: bgColor,
-      borderRadius: BorderRadius.circular(16),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: isPrimary
-                ? null
-                : Border.all(color: const Color(0xFFEDF2F7), width: 1.2),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE8EEF5)),
             boxShadow: [
               BoxShadow(
-                color: isPrimary
-                    ? accentColor.withValues(alpha: 0.2)
-                    : Colors.black.withValues(alpha: 0.03),
+                color: const Color(0xFF0F172A).withValues(alpha: 0.03),
                 blurRadius: 10,
-                offset: const Offset(0, 4),
+                offset: const Offset(0, 3),
               ),
             ],
           ),
@@ -108,42 +103,33 @@ class WmsStatCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: isPrimary
-                          ? Colors.white.withValues(alpha: 0.18)
-                          : accentColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 16,
-                      color: isPrimary ? Colors.white : accentColor,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  Icon(icon, size: 17, color: accentColor),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: titleColor,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF64748B),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: valueColor,
+              const SizedBox(height: 8),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
               ),
               if (subtitle != null) ...[
@@ -152,7 +138,10 @@ class WmsStatCard extends StatelessWidget {
                   subtitle!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: subColor),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF94A3B8),
+                  ),
                 ),
               ],
             ],
@@ -163,7 +152,7 @@ class WmsStatCard extends StatelessWidget {
   }
 }
 
-/// Kotak pencarian membulat yang seragam di semua halaman
+/// Kotak pencarian membulat dengan ikon Google Material
 class WmsSearchBar extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -177,7 +166,7 @@ class WmsSearchBar extends StatelessWidget {
     required this.onChanged,
     required this.onClear,
     required this.hasText,
-    this.hintText = 'Cari nama barang atau kode SKU...',
+    this.hintText = 'Cari barang, SKU, atau rak...',
   });
 
   @override
@@ -189,7 +178,7 @@ class WmsSearchBar extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.025),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.025),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -200,68 +189,97 @@ class WmsSearchBar extends StatelessWidget {
         onChanged: onChanged,
         decoration: InputDecoration(
           hintText: hintText,
-          hintStyle: const TextStyle(color: Colors.black38, fontSize: 14),
-          prefixIcon:
-              const Icon(Icons.search_rounded, color: Color(0xFF1565C0)),
+          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13.5),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            color: Color(0xFF64748B),
+            size: 20,
+          ),
           suffixIcon: hasText
               ? IconButton(
-                  icon: const Icon(Icons.clear_rounded,
-                      size: 18, color: Colors.grey),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: Color(0xFF64748B),
+                  ),
                   onPressed: onClear,
                 )
-              : null,
+              : const Icon(
+                  Icons.qr_code_scanner_rounded,
+                  size: 19,
+                  color: Color(0xFF155EEF),
+                ),
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          filled: false,
           contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         ),
       ),
     );
   }
 }
 
-/// Avatar ikon kategori lembut untuk kartu barang & riwayat mutasi
+/// Avatar ikon kategori berbasis Google Material Icons
+/// Avatar ikon kategori berbasis Google Material Icons + foto produk Shopee
 class CategoryAvatar extends StatelessWidget {
   final String? categoryName;
-  final String skuPrefix;
+  final String? skuPrefix;
+  final String? imageUrl;
+  final double size;
 
   const CategoryAvatar({
     super.key,
     this.categoryName,
-    required this.skuPrefix,
+    this.skuPrefix,
+    this.imageUrl,
+    this.size = 44,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = WmsCategoryStyle.color(categoryName);
-    final emoji = WmsCategoryStyle.emoji(categoryName);
+    final key = categoryName ?? skuPrefix;
+    final iconData = WmsCategoryStyle.icon(key);
+    final fgColor = WmsCategoryStyle.color(key);
+    final bgColor = fgColor.withValues(alpha: 0.12);
+    final url = imageUrl?.trim();
+
+    if (url != null && url.isNotEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Icon(
+            iconData,
+            color: fgColor,
+            size: size * 0.48,
+          ),
+        ),
+      );
+    }
 
     return Container(
-      width: 46,
-      height: 46,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(13),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
-          const SizedBox(height: 1),
-          Text(
-            skuPrefix,
-            style: TextStyle(
-              fontSize: 8.5,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
+      child: Icon(iconData, color: fgColor, size: size * 0.48),
     );
   }
 }
 
-/// Pill indikator jumlah & status stok (Habis / Menipis / Aman)
+/// Pill indikator jumlah stok bergaya mockup (biru lembut / kuning / merah lembut)
 class StockBadge extends StatelessWidget {
   final ItemModel item;
 
@@ -273,31 +291,31 @@ class StockBadge extends StatelessWidget {
     final bool isLow = item.isLowStock;
 
     final Color bg = isOut
-        ? const Color(0xFFFFEBEE)
+        ? const Color(0xFFFEE2E2)
         : isLow
-            ? const Color(0xFFFFF3E0)
-            : const Color(0xFFE3F2FD);
+            ? const Color(0xFFFEF3C7)
+            : const Color(0xFFEFF6FF);
     final Color fg = isOut
-        ? const Color(0xFFC62828)
+        ? const Color(0xFFDC2626)
         : isLow
-            ? const Color(0xFFE65100)
-            : const Color(0xFF1565C0);
+            ? const Color(0xFFB45309)
+            : const Color(0xFF155EEF);
 
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
-            '${item.currentStock} ${item.unit}',
+            '${item.currentStock} ${item.unit.toLowerCase()}',
             style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.bold,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
               color: fg,
             ),
           ),
@@ -305,18 +323,8 @@ class StockBadge extends StatelessWidget {
         if (item.packBreakdown != null) ...[
           const SizedBox(height: 3),
           Text(
-            '≈ ${item.packBreakdown}',
-            style: const TextStyle(fontSize: 10.5, color: Colors.black45),
-          ),
-        ] else if (isOut || isLow) ...[
-          const SizedBox(height: 3),
-          Text(
-            isOut ? 'Stok habis' : 'Min. ${item.minStock}',
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: fg,
-            ),
+            item.packBreakdown!,
+            style: const TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
           ),
         ],
       ],
@@ -324,7 +332,7 @@ class StockBadge extends StatelessWidget {
   }
 }
 
-/// Header bagian halaman dengan judul & aksi di kanan
+/// Header section bersih dengan tombol aksi teks biru di kanan
 class WmsSectionHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -342,23 +350,28 @@ class WmsSectionHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A202C),
-              ),
-            ),
-            if (subtitle != null)
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                subtitle!,
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
               ),
-          ],
+              if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+            ],
+          ),
         ),
         if (trailing != null) trailing!,
       ],

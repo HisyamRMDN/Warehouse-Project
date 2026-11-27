@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:warehouse_project/Pages/historyPage.dart';
 import 'package:warehouse_project/core/format.dart';
 import 'package:warehouse_project/core/supabase_config.dart';
 import 'package:warehouse_project/models/wms_models.dart';
 import 'package:warehouse_project/widgets/wms_ui_components.dart';
+import 'package:warehouse_project/Pages/restockPage.dart';
 
 class HomePage extends StatefulWidget {
   final bool isAdmin;
   final VoidCallback? onOpenMutation;
   final ValueChanged<int>? onNavigateTab;
+  final VoidCallback? onOpenCategories;
 
   const HomePage({
     super.key,
     this.isAdmin = false,
     this.onOpenMutation,
     this.onNavigateTab,
+    this.onOpenCategories,
   });
 
   @override
@@ -28,7 +32,7 @@ class _HomePageState extends State<HomePage> {
   int _totalStockUnits = 0;
   int _lowStockCount = 0;
   double _stockCost = 0;
-  Map<String, double> _revenueByChannel = {};
+  double _totalRevenue30d = 0;
   List<StockTransactionModel> _recentTransactions = [];
 
   @override
@@ -53,7 +57,7 @@ class _HomePageState extends State<HomePage> {
           .from('stock_transactions')
           .select('*, items(name, sku, unit, pack_label)')
           .order('transaction_date', ascending: false)
-          .limit(15);
+          .limit(10);
 
       final itemsList = itemsRes as List<dynamic>;
       int totalUnits = 0;
@@ -68,7 +72,7 @@ class _HomePageState extends State<HomePage> {
         if (current <= min) lowCount++;
       }
 
-      final revenue = <String, double>{};
+      double rev30 = 0;
       if (widget.isAdmin) {
         try {
           final since = DateTime.now()
@@ -80,9 +84,7 @@ class _HomePageState extends State<HomePage> {
               .select()
               .gte('day', since);
           for (final row in salesRes as List<dynamic>) {
-            final ch = (row['channel'] as String?) ?? 'lainnya';
-            revenue[ch] = (revenue[ch] ?? 0) +
-                ((row['revenue'] as num?)?.toDouble() ?? 0);
+            rev30 += ((row['revenue'] as num?)?.toDouble() ?? 0);
           }
         } catch (_) {}
       }
@@ -97,7 +99,7 @@ class _HomePageState extends State<HomePage> {
         _totalStockUnits = totalUnits;
         _lowStockCount = lowCount;
         _stockCost = totalCost;
-        _revenueByChannel = revenue;
+        _totalRevenue30d = rev30;
         _recentTransactions = transactions;
         _isLoading = false;
       });
@@ -110,24 +112,30 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  String _formatDateTime(DateTime dt) {
-    final day = dt.day.toString().padLeft(2, '0');
-    final month = dt.month.toString().padLeft(2, '0');
-    final hour = dt.hour.toString().padLeft(2, '0');
-    final minute = dt.minute.toString().padLeft(2, '0');
-    return '$day/$month $hour:$minute';
+  String _formatRibuan(int value) {
+    final s = value.toString();
+    final buf = StringBuffer();
+    for (int i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write('.');
+      buf.write(s[i]);
+    }
+    return buf.toString();
   }
 
-  String _channelLabel(String channel) {
-    switch (channel) {
-      case 'shopee':
-        return 'Shopee';
-      case 'tokopedia':
-        return 'Tokopedia';
-      case 'offline':
-        return 'Offline';
+  String _formatTime(DateTime dt) {
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '$hour:$minute WIB';
+  }
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'IN':
+        return 'Masuk';
+      case 'OUT':
+        return 'Keluar';
       default:
-        return 'Lainnya';
+        return 'Opname';
     }
   }
 
@@ -156,118 +164,163 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    final totalRevenue30d =
-        _revenueByChannel.values.fold<double>(0, (a, b) => a + b);
-
     return RefreshIndicator(
       onRefresh: _loadDashboardData,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
         children: [
-          // 1. Kartu Hero Gradasi Biru ala Boxora
+          // 1. Kartu Ringkasan Utama Putih Bersih (Persis Layar 2 Mockup)
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF4C8DF6),
-                  Color(0xFF1D61E7),
-                ],
-              ),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8EEF5)),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1D61E7).withValues(alpha: 0.25),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  'Total Stok Fisik',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(height: 4),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
                   children: [
-                    const Text(
-                      'Ringkasan Gudang',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                    Text(
+                      _formatRibuan(_totalStockUnits),
+                      style: const TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        'Live Stock',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'unit',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF64748B),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Expanded(
-                      child: _GlassMetricBox(
-                        label: 'Total SKU',
-                        value: '$_totalSku',
+                      child: GestureDetector(
+                        onTap: () => widget.onNavigateTab?.call(1),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'SKU Aktif',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '$_totalSku',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 10),
                     Expanded(
-                      child: _GlassMetricBox(
-                        label: 'Stok Menipis',
-                        value: '$_lowStockCount',
-                        highlightWarning: _lowStockCount > 0,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RestockPage(),
+                            ),
+                          );
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Perlu Restock',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFD97706),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Row(
+                              children: [
+                                Text(
+                                  '$_lowStockCount',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFFB45309),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 16,
+                                  color: Color(0xFFB45309),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                _GlassMetricBox(
-                  label: 'Total Fisik di Gudang',
-                  value: '$_totalStockUnits pcs',
-                  isLarge: true,
                 ),
               ],
             ),
           ),
 
-          // Kartu Finansial Khusus Admin (Nilai Modal & Omzet)
-          if (widget.isAdmin) ...[
-            const SizedBox(height: 14),
+          // Ringkasan Modal & Omzet (khusus Admin, tetap ringkas)
+          if (widget.isAdmin && (_stockCost > 0 || _totalRevenue30d > 0)) ...[
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   child: WmsStatCard(
-                    title: 'Nilai Stok (Modal)',
+                    title: 'Nilai Modal Stok',
                     value: formatRupiah(_stockCost),
-                    icon: Icons.account_balance_wallet_rounded,
-                    accentColor: const Color(0xFF6A1B9A),
+                    icon: Icons.account_balance_wallet_outlined,
+                    accentColor: const Color(0xFF155EEF),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: WmsStatCard(
                     title: 'Omzet 30 Hari',
-                    value: formatRupiah(totalRevenue30d),
+                    value: formatRupiah(_totalRevenue30d),
                     icon: Icons.trending_up_rounded,
-                    accentColor: const Color(0xFF00897B),
+                    accentColor: const Color(0xFF059669),
                   ),
                 ),
               ],
@@ -276,72 +329,70 @@ class _HomePageState extends State<HomePage> {
 
           const SizedBox(height: 20),
 
-          // 2. Menu Aksi Cepat (Grid 2x2 bergaya Boxora)
-          const WmsSectionHeader(
-            title: 'Aksi Cepat',
-            subtitle: 'Catat pergerakan stok atau kelola katalog',
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickActionTile(
-                  title: 'Barang Masuk',
-                  subtitle: 'Restock supplier',
-                  icon: Icons.south_west_rounded,
-                  iconBg: const Color(0xFFE8F5E9),
-                  iconColor: const Color(0xFF2E7D32),
-                  onTap: widget.onOpenMutation,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _QuickActionTile(
-                  title: 'Barang Keluar',
-                  subtitle: 'Pesanan marketplace',
-                  icon: Icons.north_east_rounded,
-                  iconBg: const Color(0xFFFFEBEE),
-                  iconColor: const Color(0xFFC62828),
-                  onTap: widget.onOpenMutation,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _QuickActionTile(
-                  title: 'Daftar SKU',
-                  subtitle: '$_totalSku produk terdaftar',
-                  icon: Icons.inventory_2_outlined,
-                  iconBg: const Color(0xFFE3F2FD),
-                  iconColor: const Color(0xFF1565C0),
-                  onTap: () => widget.onNavigateTab?.call(1),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _QuickActionTile(
-                  title: 'Kategori',
-                  subtitle: 'Kelompok peralatan',
-                  icon: Icons.grid_view_rounded,
-                  iconBg: const Color(0xFFFFF3E0),
-                  iconColor: const Color(0xFFEF6C00),
-                  onTap: () => widget.onNavigateTab?.call(2),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 22),
-
-          // 3. Riwayat Mutasi Terbaru bergaya Gostock Recent Documents
+          // 2. Bagian Catat Cepat (Persis Layar 2 Mockup)
           WmsSectionHeader(
-            title: 'Mutasi Terbaru',
-            subtitle: '15 transaksi terakhir di buku besar',
+            title: 'Catat Cepat',
+            trailing: TextButton.icon(
+              onPressed: widget.onOpenCategories,
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF155EEF),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+              icon: const Icon(Icons.category_outlined, size: 17),
+              label: const Text(
+                'Kategori',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickActionCard(
+                  title: 'Barang Masuk',
+                  subtitle: 'Terima stok',
+                  icon: Icons.south_west_rounded,
+                  iconColor: const Color(0xFF059669),
+                  onTap: widget.onOpenMutation,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _QuickActionCard(
+                  title: 'Barang Keluar',
+                  subtitle: 'Kirim toko',
+                  icon: Icons.north_east_rounded,
+                  iconColor: const Color(0xFFD97706),
+                  onTap: widget.onOpenMutation,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // 3. Aktivitas Terbaru (Persis Layar 2 Mockup)
+          WmsSectionHeader(
+            title: 'Aktivitas Terbaru',
+            trailing: TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryPage()),
+                );
+              },
+              child: const Text(
+                'Lihat Semua',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF155EEF),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
 
           if (_recentTransactions.isEmpty)
             Container(
@@ -349,177 +400,106 @@ class _HomePageState extends State<HomePage> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE9EDF7)),
+                border: Border.all(color: const Color(0xFFE8EEF5)),
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.receipt_long_outlined,
-                      size: 38, color: Color(0xFF8F9BBA)),
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 36,
+                    color: Color(0xFF94A3B8),
+                  ),
                   SizedBox(height: 8),
                   Text(
-                    'Belum ada transaksi mutasi stok.',
-                    style: TextStyle(color: Color(0xFF8F9BBA)),
+                    'Belum ada aktivitas mutasi stok.',
+                    style: TextStyle(color: Color(0xFF64748B)),
                   ),
                 ],
               ),
             )
           else
-            ..._recentTransactions.map((tx) {
-              final delta = tx.type == 'OUT' ? -tx.quantity : tx.quantity;
-              final isInbound = delta > 0;
-              final isAdjust = tx.type == 'ADJUSTMENT';
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE8EEF5)),
+              ),
+              child: Column(
+                children: List.generate(_recentTransactions.length, (index) {
+                  final tx = _recentTransactions[index];
+                  final delta = tx.type == 'OUT' ? -tx.quantity : tx.quantity;
+                  final isInbound = delta > 0;
+                  final Color deltaColor = isInbound
+                      ? const Color(0xFF059669)
+                      : tx.type == 'ADJUSTMENT'
+                          ? const Color(0xFFDC2626)
+                          : const Color(0xFFD97706);
 
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE9EDF7)),
-                ),
-                child: ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  leading: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: isInbound
-                          ? const Color(0xFFE8F5E9)
-                          : const Color(0xFFFFEBEE),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      isAdjust
-                          ? Icons.tune_rounded
-                          : (isInbound
-                              ? Icons.arrow_downward_rounded
-                              : Icons.arrow_upward_rounded),
-                      color: isInbound
-                          ? const Color(0xFF2E7D32)
-                          : const Color(0xFFC62828),
-                    ),
-                  ),
-                  title: Text(
-                    tx.itemName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: Color(0xFF1B2559),
-                    ),
-                  ),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Text(
-                      '${tx.itemSku} • ${_formatDateTime(tx.transactionDate)}'
-                      '${tx.channel != null ? ' • ${_channelLabel(tx.channel!)}' : ''}'
-                      '${(tx.notes != null && tx.notes!.isNotEmpty) ? ' • ${tx.notes}' : ''}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF8F9BBA),
+                  return Column(
+                    children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        title: Text(
+                          tx.itemName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            '${_typeLabel(tx.type)} • ${_formatTime(tx.transactionDate)}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                        trailing: Text(
+                          '${isInbound ? '+' : '-'}${delta.abs()} ${tx.itemUnit.toLowerCase()}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5,
+                            color: deltaColor,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: isInbound
-                          ? const Color(0xFFE8F5E9)
-                          : const Color(0xFFFFEBEE),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${isInbound ? '+' : '-'}${delta.abs()} ${tx.itemUnit}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 13,
-                        color: isInbound
-                            ? const Color(0xFF2E7D32)
-                            : const Color(0xFFC62828),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
+                      if (index < _recentTransactions.length - 1)
+                        const Divider(
+                          height: 1,
+                          indent: 16,
+                          endIndent: 16,
+                          color: Color(0xFFF1F5F9),
+                        ),
+                    ],
+                  );
+                }),
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-class _GlassMetricBox extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool isLarge;
-  final bool highlightWarning;
-
-  const _GlassMetricBox({
-    required this.label,
-    required this.value,
-    this.isLarge = false,
-    this.highlightWarning = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: isLarge ? 12 : 10,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: highlightWarning
-              ? const Color(0xFFFFCC80)
-              : Colors.white.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              color: Colors.white.withValues(alpha: 0.85),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isLarge ? 22 : 18,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickActionTile extends StatelessWidget {
+class _QuickActionCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
-  final Color iconBg;
   final Color iconColor;
   final VoidCallback? onTap;
 
-  const _QuickActionTile({
+  const _QuickActionCard({
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.iconBg,
     required this.iconColor,
     this.onTap,
   });
@@ -528,54 +508,42 @@ class _QuickActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE9EDF7)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE8EEF5)),
           ),
           child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13.5,
-                        color: Color(0xFF1B2559),
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF8F9BBA),
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
                       ),
                     ),
                   ],
                 ),
               ),
+              Icon(icon, color: iconColor, size: 20),
             ],
           ),
         ),

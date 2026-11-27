@@ -19,16 +19,15 @@ class ItemModel {
   final String? categoryId;
   final String? categoryName;
   final String unit;
-  final int currentStock; // selalu dalam pcs
+  final int currentStock;
   final int minStock;
   final String? rackLocation;
-
-  // Kemasan & harga. Semua harga dihitung PER PCS (kecuali sellPricePack).
-  final int packQty; // isi per lusin/kemasan; 1 = tidak punya kemasan
-  final String packLabel; // mis. 'lusin'
+  final int packQty;
+  final String packLabel;
   final num buyPrice;
   final num sellPrice;
-  final num? sellPricePack; // harga jual per lusin (opsional)
+  final num? sellPricePack;
+  final String? imageUrl; // <-- Tambahkan ini
 
   ItemModel({
     required this.id,
@@ -45,6 +44,7 @@ class ItemModel {
     this.buyPrice = 0,
     this.sellPrice = 0,
     this.sellPricePack,
+    this.imageUrl, // <-- Tambahkan ini
   });
 
   bool get isLowStock => currentStock <= minStock;
@@ -77,6 +77,7 @@ class ItemModel {
       buyPrice: (json['buy_price'] as num?) ?? 0,
       sellPrice: (json['sell_price'] as num?) ?? 0,
       sellPricePack: json['sell_price_pack'] as num?,
+      imageUrl: (json['image_url'] as String?)?.trim(),
     );
   }
 }
