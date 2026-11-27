@@ -7,6 +7,7 @@ import 'package:warehouse_project/widgets/csv_import_dialog.dart';
 import 'package:warehouse_project/widgets/item_form_dialog.dart';
 import 'package:warehouse_project/widgets/wms_ui_components.dart';
 import 'package:warehouse_project/widgets/item_detail_sheet.dart';
+import 'package:warehouse_project/widgets/barcode_scanner_sheet.dart';
 
 class ItemsPage extends StatefulWidget {
   final VoidCallback onDataChanged;
@@ -246,12 +247,18 @@ class _ItemsPageState extends State<ItemsPage> {
               Expanded(
                 child: WmsSearchBar(
                   controller: _searchCtrl,
-                  hasText: _searchQuery.isNotEmpty,
-                  onChanged: _onSearchChanged,
+                  hasText: _searchCtrl.text.isNotEmpty,
+                  onChanged: (val) => _onSearchChanged(val),
                   onClear: () {
                     _searchCtrl.clear();
-                    setState(() => _searchQuery = '');
                     _fetchItems(reset: true);
+                  },
+                  onScanTap: () async {
+                    final scannedSku = await BarcodeScannerSheet.scan(context);
+                    if (scannedSku != null && mounted) {
+                      _searchCtrl.text = scannedSku;
+                      _fetchItems(reset: true);
+                    }
                   },
                 ),
               ),

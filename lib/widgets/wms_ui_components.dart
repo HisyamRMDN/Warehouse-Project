@@ -158,6 +158,7 @@ class WmsSearchBar extends StatelessWidget {
   final String hintText;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
+  final VoidCallback? onScanTap; // <-- Tambahkan ini
   final bool hasText;
 
   const WmsSearchBar({
@@ -166,6 +167,7 @@ class WmsSearchBar extends StatelessWidget {
     required this.onChanged,
     required this.onClear,
     required this.hasText,
+    this.onScanTap, // <-- Tambahkan ini
     this.hintText = 'Cari barang, SKU, atau rak...',
   });
 
@@ -204,10 +206,14 @@ class WmsSearchBar extends StatelessWidget {
                   ),
                   onPressed: onClear,
                 )
-              : const Icon(
-                  Icons.qr_code_scanner_rounded,
-                  size: 19,
-                  color: Color(0xFF155EEF),
+              : IconButton(
+                  tooltip: 'Pindai Barcode SKU',
+                  icon: const Icon(
+                    Icons.qr_code_scanner_rounded,
+                    size: 20,
+                    color: Color(0xFF155EEF),
+                  ),
+                  onPressed: onScanTap,
                 ),
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
