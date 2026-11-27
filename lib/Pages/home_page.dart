@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:warehouse_project/Pages/historyPage.dart';
+import 'package:warehouse_project/Pages/history_page.dart';
 import 'package:warehouse_project/core/format.dart';
 import 'package:warehouse_project/core/supabase_config.dart';
 import 'package:warehouse_project/models/wms_models.dart';
 import 'package:warehouse_project/widgets/wms_ui_components.dart';
-import 'package:warehouse_project/Pages/restockPage.dart';
+import 'package:warehouse_project/Pages/restock_page.dart';
 
 class HomePage extends StatefulWidget {
   final bool isAdmin;

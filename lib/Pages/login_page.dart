@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:warehouse_project/Pages/mainPage.dart';
+import 'package:warehouse_project/Pages/main_page.dart';
 import 'package:warehouse_project/core/supabase_config.dart';
 
 class LoginPage extends StatefulWidget {

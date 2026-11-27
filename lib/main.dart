@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:warehouse_project/Pages/loginPage.dart';
-import 'package:warehouse_project/Pages/mainPage.dart';
+import 'package:warehouse_project/Pages/login_page.dart';
+import 'package:warehouse_project/Pages/main_page.dart';
 import 'core/supabase_config.dart';
 
 void main() async {

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:warehouse_project/Pages/categoryPage.dart';
-import 'package:warehouse_project/Pages/formPage.dart';
-import 'package:warehouse_project/Pages/homePage.dart';
-import 'package:warehouse_project/Pages/itemsPage.dart';
-import 'package:warehouse_project/Pages/loginPage.dart';
+import 'package:warehouse_project/Pages/category_page.dart';
+import 'package:warehouse_project/Pages/form_page.dart';
+import 'package:warehouse_project/Pages/home_page.dart';
+import 'package:warehouse_project/Pages/items_page.dart';
+import 'package:warehouse_project/Pages/login_page.dart';
 import 'package:warehouse_project/core/supabase_config.dart';
 
 class MainPage extends StatefulWidget {
