@@ -3,6 +3,7 @@ import 'package:warehouse_project/core/format.dart';
 import 'package:warehouse_project/core/supabase_config.dart';
 import 'package:warehouse_project/models/wms_models.dart';
 import 'package:warehouse_project/widgets/wms_ui_components.dart';
+import 'package:warehouse_project/widgets/barcode_label_sheet.dart';
 
 class ItemDetailSheet extends StatefulWidget {
   final ItemModel item;
@@ -490,6 +491,27 @@ class _ItemDetailSheetState extends State<ItemDetailSheet> {
                       },
                     ),
                 ],
+              ),
+            ),
+          ),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => BarcodeLabelSheet.show(context, item),
+              icon: const Icon(Icons.qr_code_2_rounded, size: 19),
+              label: const Text(
+                'Cetak Label Barcode Rak',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF155EEF),
+                side: const BorderSide(color: Color(0xFFBFDBFE)),
+                backgroundColor: const Color(0xFFEFF6FF),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ),

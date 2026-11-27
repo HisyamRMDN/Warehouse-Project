@@ -5,6 +5,7 @@ import 'package:warehouse_project/core/format.dart';
 import 'package:warehouse_project/core/supabase_config.dart';
 import 'package:warehouse_project/models/wms_models.dart';
 import 'package:warehouse_project/widgets/wms_ui_components.dart';
+import 'package:warehouse_project/widgets/barcode_scanner_sheet.dart';
 
 class FormPage extends StatefulWidget {
   final bool embedded;
@@ -248,9 +249,23 @@ class _FormPageState extends State<FormPage> {
                         hasText: query.isNotEmpty,
                         hintText: 'Ketik nama barang atau kode SKU...',
                         onChanged: (val) => setSheetState(() => query = val),
-                        onClear: () {
+                        onClear: () => setSheetState(() {
                           searchCtrl.clear();
-                          setSheetState(() => query = '');
+                          query = '';
+                        }),
+                        onScanTap: () async {
+                          final scannedSku = await BarcodeScannerSheet.scan(
+                            context,
+                            title: 'Pindai Barang Mutasi',
+                            subtitle:
+                                'Scan barcode rak untuk memilih SKU otomatis',
+                          );
+                          if (scannedSku != null && context.mounted) {
+                            setSheetState(() {
+                              searchCtrl.text = scannedSku;
+                              query = scannedSku;
+                            });
+                          }
                         },
                       ),
                     ],
@@ -273,23 +288,25 @@ class _FormPageState extends State<FormPage> {
                           itemBuilder: (_, idx) {
                             final it = filtered[idx];
                             final selected = it.id == _selectedItem?.id;
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? const Color(0xFFEFF6FF)
-                                    : const Color(0xFFF8FAFC),
+                            return Material(
+                              color: selected
+                                  ? const Color(0xFFEFF6FF)
+                                  : const Color(0xFFF8FAFC),
+                              shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
+                                side: BorderSide(
                                   color: selected
                                       ? const Color(0xFF155EEF)
                                       : const Color(0xFFE8EEF5),
                                 ),
                               ),
+                              clipBehavior: Clip.antiAlias,
                               child: ListTile(
                                 onTap: () => Navigator.pop(ctx, it),
                                 leading: CategoryAvatar(
                                   categoryName: it.categoryName,
                                   skuPrefix: it.sku.split('-').first,
+                                  imageUrl: it.imageUrl,
                                 ),
                                 title: Text(
                                   it.name,
